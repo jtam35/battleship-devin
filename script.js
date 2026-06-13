@@ -23,7 +23,7 @@ var SUNK   = 4;
 
 // ── Pure game-logic helpers (no DOM access) ─────────────────
 
-/** Create a fresh 10×10 board filled with EMPTY. */
+/** Create a fresh 10x10 board filled with EMPTY. */
 function createBoard() {
   var board = [];
   for (var r = 0; r < GRID_SIZE; r++) {
@@ -125,7 +125,6 @@ function checkSunk(board, ships, row, col) {
       if (cells[i][0] === row && cells[i][1] === col) { belongs = true; break; }
     }
     if (!belongs) continue;
-    // Check if all cells are HIT
     var allHit = true;
     for (var j = 0; j < cells.length; j++) {
       if (board[cells[j][0]][cells[j][1]] !== HIT) { allHit = false; break; }
@@ -142,7 +141,7 @@ function checkSunk(board, ships, row, col) {
 }
 
 /**
- * Check if all ships in the fleet are sunk → game over.
+ * Check if all ships in the fleet are sunk -> game over.
  */
 function allSunk(ships) {
   for (var i = 0; i < ships.length; i++) {
@@ -156,7 +155,7 @@ function allSunk(ships) {
  * Instead of random shots or simple hunt/target, the AI builds a
  * probability heatmap each turn:
  *
- * 1. Start with a 10×10 grid of zeros.
+ * 1. Start with a 10x10 grid of zeros.
  * 2. For every ship size the AI has NOT yet sunk on the player's board,
  *    slide that ship across every cell in both orientations.
  * 3. A placement is "valid" if every cell it covers is either EMPTY or
@@ -178,7 +177,7 @@ function allSunk(ships) {
  * `board` is the PLAYER's board from the AI's perspective (AI sees
  *  HIT/MISS/SUNK but not which cells are SHIP vs EMPTY).
  * `remainingSizes` is an array of ship sizes the AI hasn't sunk yet.
- * Returns a 10×10 grid of scores.
+ * Returns a 10x10 grid of scores.
  */
 function buildProbabilityGrid(board, remainingSizes) {
   var prob = createBoard(); // all zeros
@@ -272,13 +271,14 @@ function initGame() {
   // ── State ──
   var playerBoard, aiBoard;
   var playerShips, aiShips;
-  var placementBoard;      // board used during placement phase
-  var placedShips;         // ships placed so far by the player
-  var currentShipIdx;      // index into FLEET during placement
-  var horizontal;          // current orientation
+  var placementBoard;
+  var placedShips;
+  var currentShipIdx;
+  var horizontal;
   var gameOver;
   var playerTurn;
-  var lastTapCell;         // for touch double-tap placement
+  var lastTapCell;
+  var messageLog = [];  // turn-by-turn log entries
 
   // ── DOM refs ──
   var statusEl        = document.getElementById('status');
@@ -288,24 +288,42 @@ function initGame() {
   var endTitle        = document.getElementById('end-title');
   var endMessage      = document.getElementById('end-message');
   var restartBtn      = document.getElementById('restart-btn');
+  var restartGameBtn  = document.getElementById('restart-game-btn');
   var startBtn        = document.getElementById('start-btn');
   var rotateBtn       = document.getElementById('rotate-btn');
   var shipsToPlaceUl  = document.getElementById('ships-to-place');
   var placementGrid   = document.getElementById('placement-grid');
   var aiGridEl        = document.getElementById('ai-grid');
   var playerGridEl    = document.getElementById('player-grid');
+  var heatmapToggle   = document.getElementById('heatmap-toggle');
+  var logListEl       = document.getElementById('log-list');
 
   // ── Helpers ──
   function setStatus(msg) { statusEl.textContent = msg; }
 
-  /** Build the 11×11 grid DOM (header row + header col + 10×10 cells). */
+  /** Add an entry to the message log and update the DOM. */
+  function addLogEntry(msg, type) {
+    messageLog.push({ msg: msg, type: type || '' });
+    if (messageLog.length > 10) messageLog.shift();
+    renderLog();
+  }
+
+  function renderLog() {
+    logListEl.innerHTML = '';
+    for (var i = messageLog.length - 1; i >= 0; i--) {
+      var li = document.createElement('li');
+      li.textContent = messageLog[i].msg;
+      if (messageLog[i].type) li.className = 'log-' + messageLog[i].type;
+      logListEl.appendChild(li);
+    }
+  }
+
+  /** Build the 11x11 grid DOM (header row + header col + 10x10 cells). */
   function buildGridDOM(container, onClick) {
     container.innerHTML = '';
-    // Top-left empty corner
     var corner = document.createElement('div');
     corner.className = 'header-cell';
     container.appendChild(corner);
-    // Column headers A-J
     for (var c = 0; c < GRID_SIZE; c++) {
       var ch = document.createElement('div');
       ch.className = 'header-cell';
@@ -313,7 +331,6 @@ function initGame() {
       container.appendChild(ch);
     }
     for (var r = 0; r < GRID_SIZE; r++) {
-      // Row header 1-10
       var rh = document.createElement('div');
       rh.className = 'header-cell';
       rh.textContent = r + 1;
@@ -333,7 +350,6 @@ function initGame() {
 
   /** Return the cell DOM element from a grid container at (r, c). */
   function getCellEl(container, r, c) {
-    // Index: 11 (first row of headers) + r*11 (skip row headers) + 1 (row header) + c
     var idx = 11 + r * 11 + 1 + c;
     return container.children[idx];
   }
@@ -344,11 +360,73 @@ function initGame() {
       for (var c = 0; c < GRID_SIZE; c++) {
         var el = getCellEl(container, r, c);
         el.className = 'cell';
+        el.style.backgroundColor = '';
         var v = board[r][c];
         if (v === SHIP && showShips) el.classList.add('ship');
         if (v === HIT)  el.classList.add('hit');
         if (v === MISS) el.classList.add('miss');
         if (v === SUNK) el.classList.add('sunk');
+      }
+    }
+  }
+
+  /** Apply a brief animation class to a cell, auto-removed after animation ends. */
+  function animateCell(container, row, col, animClass) {
+    var el = getCellEl(container, row, col);
+    el.classList.add(animClass);
+    el.addEventListener('animationend', function handler() {
+      el.classList.remove(animClass);
+      el.removeEventListener('animationend', handler);
+    });
+  }
+
+  /**
+   * Render the probability heatmap overlay on the AI board.
+   * Uses HSL: hue from 240 (blue/cool) to 0 (red/warm) proportional to probability.
+   * Only overlays unknown cells (not hit/miss/sunk).
+   */
+  function renderHeatmap() {
+    if (!heatmapToggle.checked) return;
+    // Build probability from player's perspective: where might AI ships be?
+    var sizes = remainingShipSizes(aiShips);
+    var prob = buildProbabilityGrid(aiBoard, sizes);
+
+    // Find max for normalization
+    var maxVal = 0;
+    for (var r = 0; r < GRID_SIZE; r++) {
+      for (var c = 0; c < GRID_SIZE; c++) {
+        if (prob[r][c] > maxVal) maxVal = prob[r][c];
+      }
+    }
+    if (maxVal === 0) return;
+
+    for (var r2 = 0; r2 < GRID_SIZE; r2++) {
+      for (var c2 = 0; c2 < GRID_SIZE; c2++) {
+        var el = getCellEl(aiGridEl, r2, c2);
+        var v = aiBoard[r2][c2];
+        // Only overlay on unknown cells
+        if (v === EMPTY || v === SHIP) {
+          var ratio = prob[r2][c2] / maxVal;
+          if (ratio > 0) {
+            // HSL: hue 240 (blue) -> 0 (red), saturation 80%, lightness 40-55%
+            var hue = Math.round(240 * (1 - ratio));
+            var lightness = Math.round(40 + 15 * ratio);
+            el.style.backgroundColor = 'hsl(' + hue + ', 80%, ' + lightness + '%)';
+          }
+        }
+      }
+    }
+  }
+
+  /** Clear heatmap overlay from AI board. */
+  function clearHeatmap() {
+    for (var r = 0; r < GRID_SIZE; r++) {
+      for (var c = 0; c < GRID_SIZE; c++) {
+        var el = getCellEl(aiGridEl, r, c);
+        var v = aiBoard[r][c];
+        if (v === EMPTY || v === SHIP) {
+          el.style.backgroundColor = '';
+        }
       }
     }
   }
@@ -362,20 +440,18 @@ function initGame() {
     horizontal = true;
     lastTapCell = null;
     gameOver = false;
+    messageLog = [];
 
     buildGridDOM(placementGrid, onPlacementClick);
 
-    // Ghost preview on hover
     placementGrid.addEventListener('mouseover', onPlacementHover);
     placementGrid.addEventListener('mouseout', clearGhost);
 
-    // Right-click to rotate
     placementGrid.addEventListener('contextmenu', function(e) {
       e.preventDefault();
       toggleOrientation();
     });
 
-    // Touch support: show ghost on tap, confirm on second tap
     placementGrid.addEventListener('touchend', onPlacementTouch);
 
     renderShipList();
@@ -415,7 +491,6 @@ function initGame() {
     var cells = shipCells(row, col, size, horizontal);
     var valid = isValidPlacement(placementBoard, row, col, size, horizontal);
     if (!cells) {
-      // Show partial ghost as invalid
       for (var i = 0; i < size; i++) {
         var r = horizontal ? row : row + i;
         var c = horizontal ? col + i : col;
@@ -451,11 +526,9 @@ function initGame() {
     var col = +t.dataset.col;
 
     if (lastTapCell && lastTapCell[0] === row && lastTapCell[1] === col) {
-      // Second tap on same cell → confirm placement
       attemptPlacement(row, col);
       lastTapCell = null;
     } else {
-      // First tap → show ghost preview
       lastTapCell = [row, col];
       showGhost(row, col);
     }
@@ -486,7 +559,6 @@ function initGame() {
   // ── Game start ──
 
   function startGame() {
-    // Copy placement board to player board
     playerBoard = createBoard();
     for (var r = 0; r < GRID_SIZE; r++) {
       for (var c = 0; c < GRID_SIZE; c++) {
@@ -495,13 +567,17 @@ function initGame() {
     }
     playerShips = placedShips;
 
-    // AI places its fleet
     aiBoard = createBoard();
     aiShips = placeFleetRandomly(aiBoard);
 
     playerTurn = true;
+    gameOver = false;
+    messageLog = [];
+    renderLog();
 
-    // Switch UI
+    // Reset heatmap toggle
+    heatmapToggle.checked = false;
+
     placementPhase.classList.add('hidden');
     gamePhase.classList.remove('hidden');
 
@@ -511,12 +587,13 @@ function initGame() {
     renderBoard(playerGridEl, playerBoard, true);
     renderBoard(aiGridEl, aiBoard, false);
 
-    setStatus('Your turn — fire at the enemy!');
+    setStatus('Your turn \u2014 fire at the enemy!');
   }
 
   // ── Player fires ──
 
   function onAiGridClick(e) {
+    // Prevent firing during AI turn, after game over, or rapid clicks
     if (!playerTurn || gameOver) return;
     var t = e.target;
     if (!t.classList.contains('cell')) return;
@@ -526,18 +603,29 @@ function initGame() {
     var result = fireShot(aiBoard, row, col);
     if (result === 'already') { setStatus('Already fired there!'); return; }
 
+    var coord = COLS[col] + (row + 1);
     if (result === 'hit') {
       var sunkShip = checkSunk(aiBoard, aiShips, row, col);
       if (sunkShip) {
         setStatus('You sunk the enemy ' + sunkShip.name + '!');
+        addLogEntry('You sunk ' + sunkShip.name + ' at ' + coord + '!', 'sunk');
+        // Animate all sunk cells
+        for (var k = 0; k < sunkShip.cells.length; k++) {
+          animateCell(aiGridEl, sunkShip.cells[k][0], sunkShip.cells[k][1], 'anim-sunk');
+        }
       } else {
         setStatus('You hit a ship!');
+        addLogEntry('You hit at ' + coord + '!', 'hit');
+        animateCell(aiGridEl, row, col, 'anim-hit');
       }
     } else {
       setStatus('Miss!');
+      addLogEntry('You missed at ' + coord + '.', 'miss');
+      animateCell(aiGridEl, row, col, 'anim-miss');
     }
 
     renderBoard(aiGridEl, aiBoard, false);
+    renderHeatmap();
 
     if (allSunk(aiShips)) {
       endGame(true);
@@ -555,19 +643,28 @@ function initGame() {
     if (gameOver) return;
     var sizes = remainingShipSizes(playerShips);
     var target = aiChooseTarget(playerBoard, sizes);
-    if (!target) return; // safety
+    if (!target) return;
 
     var result = fireShot(playerBoard, target[0], target[1]);
+    var coord = COLS[target[1]] + (target[0] + 1);
 
     if (result === 'hit') {
       var sunkShip = checkSunk(playerBoard, playerShips, target[0], target[1]);
       if (sunkShip) {
         setStatus('AI sunk your ' + sunkShip.name + '!');
+        addLogEntry('AI sunk your ' + sunkShip.name + ' at ' + coord + '!', 'sunk');
+        for (var k = 0; k < sunkShip.cells.length; k++) {
+          animateCell(playerGridEl, sunkShip.cells[k][0], sunkShip.cells[k][1], 'anim-sunk');
+        }
       } else {
-        setStatus('AI hit your ship at ' + COLS[target[1]] + (target[0] + 1) + '!');
+        setStatus('AI hit your ship at ' + coord + '!');
+        addLogEntry('AI hit at ' + coord + '!', 'hit');
+        animateCell(playerGridEl, target[0], target[1], 'anim-hit');
       }
     } else {
-      setStatus('AI missed at ' + COLS[target[1]] + (target[0] + 1) + '.');
+      setStatus('AI missed at ' + coord + '.');
+      addLogEntry('AI missed at ' + coord + '.', 'miss');
+      animateCell(playerGridEl, target[0], target[1], 'anim-miss');
     }
 
     renderBoard(playerGridEl, playerBoard, true);
@@ -588,17 +685,31 @@ function initGame() {
     if (playerWon) {
       endTitle.textContent = 'Victory!';
       endMessage.textContent = 'You destroyed the enemy fleet!';
+      addLogEntry('VICTORY! All enemy ships destroyed.', 'sunk');
     } else {
       endTitle.textContent = 'Defeat';
       endMessage.textContent = 'The AI destroyed your fleet.';
+      addLogEntry('DEFEAT. The AI destroyed your fleet.', 'hit');
     }
   }
 
-  restartBtn.addEventListener('click', function() {
+  function resetToPlacement() {
     endScreen.classList.add('hidden');
     gamePhase.classList.add('hidden');
     placementPhase.classList.remove('hidden');
     initPlacement();
+  }
+
+  restartBtn.addEventListener('click', resetToPlacement);
+  restartGameBtn.addEventListener('click', resetToPlacement);
+
+  // Heatmap toggle handler
+  heatmapToggle.addEventListener('change', function() {
+    if (heatmapToggle.checked) {
+      renderHeatmap();
+    } else {
+      clearHeatmap();
+    }
   });
 
   // ── Keyboard shortcut: R to rotate ──
@@ -614,5 +725,8 @@ function initGame() {
   initPlacement();
 }
 
-// Single DOMContentLoaded listener that bootstraps everything
-document.addEventListener('DOMContentLoaded', initGame);
+// Single DOMContentLoaded listener that bootstraps everything.
+// Skip initialization if __TEST_MODE__ flag is set (used by test.html).
+if (!window.__TEST_MODE__) {
+  document.addEventListener('DOMContentLoaded', initGame);
+}
