@@ -275,7 +275,22 @@ header h1 {
 }
 #end-message {
   color: var(--muted);
+  margin-bottom: 1rem;
+}
+#match-stats {
   margin-bottom: 1.2rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.stat-row {
+  padding: 0.2rem 0;
+}
+.stat-player {
+  color: var(--ship);
+}
+.stat-ai {
+  color: var(--hit);
 }
 
 /* ── Utility ────────────────────────────────────────── */

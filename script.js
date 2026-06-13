@@ -279,6 +279,8 @@ function initGame() {
   var playerTurn;
   var lastTapCell;
   var messageLog = [];  // turn-by-turn log entries
+  var playerShots = 0, playerHits = 0;
+  var aiShots = 0, aiHits = 0;
 
   // ── DOM refs ──
   var statusEl        = document.getElementById('status');
@@ -605,8 +607,10 @@ function initGame() {
     var result = fireShot(aiBoard, row, col);
     if (result === 'already') { setStatus('Already fired there!'); return; }
 
+    playerShots++;
     var coord = COLS[col] + (row + 1);
     if (result === 'hit') {
+      playerHits++;
       var sunkShip = checkSunk(aiBoard, aiShips, row, col);
       if (sunkShip) {
         setStatus('You sunk the enemy ' + sunkShip.name + '!');
@@ -650,7 +654,9 @@ function initGame() {
     var result = fireShot(playerBoard, target[0], target[1]);
     var coord = COLS[target[1]] + (target[0] + 1);
 
+    aiShots++;
     if (result === 'hit') {
+      aiHits++;
       var sunkShip = checkSunk(playerBoard, playerShips, target[0], target[1]);
       if (sunkShip) {
         setStatus('AI sunk your ' + sunkShip.name + '!');
@@ -694,12 +700,20 @@ function initGame() {
       endMessage.textContent = 'The AI destroyed your fleet.';
       addLogEntry('DEFEAT. The AI destroyed your fleet.', 'hit');
     }
+    var pAcc = playerShots > 0 ? Math.round(playerHits / playerShots * 100) : 0;
+    var aAcc = aiShots > 0 ? Math.round(aiHits / aiShots * 100) : 0;
+    var statsEl = document.getElementById('match-stats');
+    statsEl.innerHTML =
+      '<div class="stat-row stat-player">Player accuracy: ' + playerHits + ' hits / ' + playerShots + ' shots (' + pAcc + '%)</div>' +
+      '<div class="stat-row stat-ai">AI accuracy: ' + aiHits + ' hits / ' + aiShots + ' shots (' + aAcc + '%)</div>';
   }
 
   function resetToPlacement() {
     endScreen.classList.add('hidden');
     gamePhase.classList.add('hidden');
     placementPhase.classList.remove('hidden');
+    playerShots = 0; playerHits = 0;
+    aiShots = 0; aiHits = 0;
     initPlacement();
   }
 
