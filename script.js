@@ -322,6 +322,8 @@ function initGame() {
   var gameOver;
   var playerTurn;
   var lastTapCell;
+  var ghostRow = null;  // current ghost preview position
+  var ghostCol = null;
   var messageLog = [];  // turn-by-turn log entries
   var playerShots = 0, playerHits = 0;
   var aiShots = 0, aiHits = 0;
@@ -338,6 +340,7 @@ function initGame() {
   var restartGameBtn  = document.getElementById('restart-game-btn');
   var startBtn        = document.getElementById('start-btn');
   var rotateBtn       = document.getElementById('rotate-btn');
+  var placeBtn        = document.getElementById('place-btn');
   var shipsToPlaceUl  = document.getElementById('ships-to-place');
   var placementGrid   = document.getElementById('placement-grid');
   var aiGridEl        = document.getElementById('ai-grid');
@@ -488,13 +491,15 @@ function initGame() {
     currentShipIdx = 0;
     horizontal = true;
     lastTapCell = null;
+    ghostRow = null;
+    ghostCol = null;
     gameOver = false;
     messageLog = [];
 
     buildGridDOM(placementGrid, onPlacementClick);
 
     placementGrid.addEventListener('mouseover', onPlacementHover);
-    placementGrid.addEventListener('mouseout', clearGhost);
+    placementGrid.addEventListener('mouseout', onPlacementMouseOut);
 
     placementGrid.addEventListener('contextmenu', function(e) {
       e.preventDefault();
@@ -505,8 +510,10 @@ function initGame() {
 
     renderShipList();
     startBtn.disabled = true;
+    placeBtn.disabled = true;
     startBtn.addEventListener('click', startGame);
     rotateBtn.addEventListener('click', toggleOrientation);
+    placeBtn.addEventListener('click', onPlaceBtnClick);
     setStatus('Place your ships!');
   }
 
@@ -523,6 +530,10 @@ function initGame() {
 
   function toggleOrientation() {
     horizontal = !horizontal;
+    if (ghostRow !== null && ghostCol !== null) {
+      showGhost(ghostRow, ghostCol);
+      updatePlaceBtn();
+    }
     setStatus('Orientation: ' + (horizontal ? 'Horizontal' : 'Vertical'));
   }
 
@@ -555,32 +566,57 @@ function initGame() {
     }
   }
 
+  /** Update the Place Ship button state based on current ghost validity. */
+  function updatePlaceBtn() {
+    if (ghostRow === null || ghostCol === null || currentShipIdx >= FLEET.length) {
+      placeBtn.disabled = true;
+      return;
+    }
+    var size = FLEET[currentShipIdx].size;
+    placeBtn.disabled = !isValidPlacement(placementBoard, ghostRow, ghostCol, size, horizontal);
+  }
+
   function onPlacementHover(e) {
     var t = e.target;
     if (!t.classList.contains('cell')) return;
-    showGhost(+t.dataset.row, +t.dataset.col);
+    var row = +t.dataset.row;
+    var col = +t.dataset.col;
+    showGhost(row, col);
+    // Only update tracked position on hover if no position locked via click
+    // (hover is transient — click/tap sets the persistent ghost position)
+  }
+
+  function onPlacementMouseOut(e) {
+    // If a position is locked via click, re-show that ghost; otherwise clear
+    if (ghostRow !== null && ghostCol !== null) {
+      showGhost(ghostRow, ghostCol);
+    } else {
+      clearGhost();
+    }
   }
 
   function onPlacementClick(e) {
     var t = e.target;
     if (!t.classList.contains('cell')) return;
-    attemptPlacement(+t.dataset.row, +t.dataset.col);
+    ghostRow = +t.dataset.row;
+    ghostCol = +t.dataset.col;
+    showGhost(ghostRow, ghostCol);
+    updatePlaceBtn();
   }
 
   function onPlacementTouch(e) {
     var t = e.target;
     if (!t.classList.contains('cell')) return;
     e.preventDefault();
-    var row = +t.dataset.row;
-    var col = +t.dataset.col;
+    ghostRow = +t.dataset.row;
+    ghostCol = +t.dataset.col;
+    showGhost(ghostRow, ghostCol);
+    updatePlaceBtn();
+  }
 
-    if (lastTapCell && lastTapCell[0] === row && lastTapCell[1] === col) {
-      attemptPlacement(row, col);
-      lastTapCell = null;
-    } else {
-      lastTapCell = [row, col];
-      showGhost(row, col);
-    }
+  function onPlaceBtnClick() {
+    if (ghostRow === null || ghostCol === null) return;
+    attemptPlacement(ghostRow, ghostCol);
   }
 
   function attemptPlacement(row, col) {
@@ -593,7 +629,10 @@ function initGame() {
     }
     placedShips.push({ name: ship.name, size: ship.size, cells: cells, sunk: false });
     currentShipIdx++;
+    ghostRow = null;
+    ghostCol = null;
     clearGhost();
+    placeBtn.disabled = true;
     renderBoard(placementGrid, placementBoard, true);
     renderShipList();
 

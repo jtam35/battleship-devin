@@ -129,6 +129,17 @@ header h1 {
   opacity: 0.45;
   text-decoration: line-through;
 }
+#placement-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+#placement-controls .btn {
+  flex: 1;
+}
+#place-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 #difficulty-wrapper {
   display: flex;
   align-items: center;
@@ -355,6 +366,10 @@ header h1 {
   .toggle-label input[type="checkbox"] {
     width: 20px;
     height: 20px;
+  }
+  #placement-controls .btn {
+    min-height: 44px;
+    font-size: 1rem;
   }
   #message-log { max-width: 100%; }
   #log-list {
