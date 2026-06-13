@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Battleship</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Battleship</h1>
+    <p id="status">Place your ships!</p>
+  </header>
+
+  <main id="game-container">
+    <!-- Placement phase -->
+    <section id="placement-phase">
+      <div id="placement-board-wrapper">
+        <h2>Your Board</h2>
+        <div id="placement-grid" class="grid"></div>
+      </div>
+      <aside id="ship-list">
+        <h2>Fleet</h2>
+        <ul id="ships-to-place"></ul>
+        <button id="rotate-btn" class="btn">Rotate (R)</button>
+        <button id="start-btn" class="btn btn-primary" disabled>Start Game</button>
+      </aside>
+    </section>
+
+    <!-- Game phase -->
+    <section id="game-phase" class="hidden">
+      <div class="game-controls">
+        <label class="toggle-label">
+          <input type="checkbox" id="heatmap-toggle" />
+          <span>Show AI Thinking</span>
+        </label>
+        <button id="restart-game-btn" class="btn">Restart Game</button>
+      </div>
+      <div class="board-wrapper">
+        <h2>Enemy Waters</h2>
+        <div id="ai-grid" class="grid"></div>
+      </div>
+      <div class="board-wrapper">
+        <h2>Your Board</h2>
+        <div id="player-grid" class="grid"></div>
+      </div>
+      <div id="message-log">
+        <h3>Battle Log</h3>
+        <ul id="log-list"></ul>
+      </div>
+    </section>
+
+    <!-- End screen overlay -->
+    <div id="end-screen" class="hidden">
+      <div id="end-box">
+        <h2 id="end-title"></h2>
+        <p id="end-message"></p>
+        <button id="restart-btn" class="btn btn-primary">Play Again</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
