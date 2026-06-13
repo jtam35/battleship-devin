@@ -129,6 +129,28 @@ header h1 {
   opacity: 0.45;
   text-decoration: line-through;
 }
+#difficulty-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+#difficulty-wrapper label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+#difficulty-select {
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+#difficulty-select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
 /* ── Game phase ─────────────────────────────────────── */
 #game-phase {
