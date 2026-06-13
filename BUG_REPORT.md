@@ -37,6 +37,26 @@ This document tracks all bugs found during development, testing, and deployment 
 
 ---
 
+## BUG-004: Heatmap overlay displayed on wrong board
+
+- **Severity:** Medium (feature works but shows misleading information on wrong grid)
+- **File affected:** `script.js`, lines 383–434 (`renderHeatmap()` and `clearHeatmap()` functions)
+- **Description:** The "Show AI Thinking" heatmap was overlaid on the AI's board (Enemy Waters — where the player shoots). This is incorrect. The heatmap represents the AI's probability estimates of where the *player's* ships are hiding, so it should be overlaid on the player's board (the board the AI is targeting).
+- **Root cause:** `renderHeatmap()` was computing the probability grid using `aiShips` and `aiBoard` (showing where the player might find AI ships) and rendering it on `aiGridEl`. This made it a player targeting aid rather than a visualization of the AI's internal decision-making. Similarly, `clearHeatmap()` was clearing from `aiGridEl`. Additionally, the heatmap was not being re-rendered after the AI fires (since `renderBoard()` clears inline styles on re-render).
+- **Fix applied:**
+  1. Changed `renderHeatmap()` to use `playerShips`/`playerBoard`/`playerGridEl` — computing and displaying the AI's actual probability estimates of where player ships are
+  2. Changed `clearHeatmap()` to clear from `playerGridEl`
+  3. Added `renderHeatmap()` call after `renderBoard(playerGridEl, ...)` in `aiTurn()` so the overlay updates after each AI shot
+  4. Added tooltip to the toggle label: "Heatmap shows where the AI thinks your ships are — warm = likely target, cool = ruled out."
+- **How to verify:**
+  1. Start a game and enable "Show AI Thinking"
+  2. The player's board (right grid) should show a blue-to-red gradient on unfired cells
+  3. The Enemy Waters board (left grid) should remain unaffected
+  4. Fire a shot and wait for AI response — the heatmap should update on the player board after the AI fires
+  5. Toggle off — player board returns to normal colors
+
+---
+
 ## Audit Results: Areas Verified Without Issues
 
 The following areas were audited and confirmed to be bug-free:
