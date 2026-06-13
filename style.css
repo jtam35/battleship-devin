@@ -129,6 +129,28 @@ header h1 {
   opacity: 0.45;
   text-decoration: line-through;
 }
+#difficulty-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+#difficulty-wrapper label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+#difficulty-select {
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+#difficulty-select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
 /* ── Game phase ─────────────────────────────────────── */
 #game-phase {
@@ -275,7 +297,22 @@ header h1 {
 }
 #end-message {
   color: var(--muted);
+  margin-bottom: 1rem;
+}
+#match-stats {
   margin-bottom: 1.2rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.stat-row {
+  padding: 0.2rem 0;
+}
+.stat-player {
+  color: var(--ship);
+}
+.stat-ai {
+  color: var(--hit);
 }
 
 /* ── Utility ────────────────────────────────────────── */
@@ -291,6 +328,11 @@ header h1 {
     flex-direction: column;
     align-items: center;
   }
+  #ship-list {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 340px;
+  }
   .grid {
     grid-template-columns: 24px repeat(10, 28px);
     grid-template-rows: 24px repeat(10, 28px);
@@ -300,5 +342,37 @@ header h1 {
     flex-direction: column;
     gap: 0.8rem;
   }
+  .game-controls .btn {
+    min-height: 44px;
+    font-size: 1rem;
+    width: 100%;
+    max-width: 280px;
+  }
+  .toggle-label {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+  .toggle-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
   #message-log { max-width: 100%; }
+  #log-list {
+    font-size: 0.875rem;
+  }
+  #message-log h3 {
+    font-size: 0.95rem;
+  }
+}
+
+/* ── Tighter mobile: larger touch targets ──────────── */
+@media (max-width: 400px) {
+  .grid {
+    grid-template-columns: 26px repeat(10, 32px);
+    grid-template-rows: 26px repeat(10, 32px);
+  }
+  .grid .cell { width: 32px; height: 32px; }
+  #game-container {
+    padding: 0.5rem 0.5rem 2rem;
+  }
 }

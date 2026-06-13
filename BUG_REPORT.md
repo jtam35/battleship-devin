@@ -57,6 +57,23 @@ This document tracks all bugs found during development, testing, and deployment 
 
 ---
 
+## BUG-005: Difficulty selector and mobile fixes not deployed to live site
+
+- **Severity:** Critical (features invisible to end users, mobile experience degraded)
+- **File(s) affected:** All game files (index.html, style.css, script.js)
+- **Description:** After implementing the difficulty selector (PR #9), post-match stats (PR #6), and mobile UX improvements (PR #8), none of these features appeared on the live GitHub Pages site at `https://jtam35.github.io/battleship-devin/`. The difficulty dropdown (Easy/Medium/Hard) was completely absent from the deployed game, and the mobile layout lacked the touch target and stacking improvements. Users on iPhone Safari saw the old, unoptimized layout.
+- **Root cause:** PRs #6, #8, and #9 were never merged into the `main` branch. GitHub Pages serves from `main`, so the live site was still running the code from PR #5 (the last merged PR). All three features existed only on their respective feature branches. Additionally, merging all three required conflict resolution between PR #6 (stat counters) and PR #9 (difficulty/huntQueue variables) in `script.js`.
+- **Fix applied:** Created a combined merge branch that includes all three PRs with conflicts resolved. The two conflict sites were:
+  1. Variable declarations (line ~326): both PRs added variables after `messageLog` — resolved by keeping both sets (`playerShots`/`playerHits`/`aiShots`/`aiHits` from PR #6 and `aiDifficulty` from PR #9)
+  2. `resetToPlacement()` (line ~773): both PRs added reset logic — resolved by keeping both (`playerShots = 0; playerHits = 0; aiShots = 0; aiHits = 0;` from PR #6 and `huntQueue = [];` from PR #9)
+- **How to verify:**
+  1. After merging, visit `https://jtam35.github.io/battleship-devin/`
+  2. The difficulty dropdown (Easy/Medium/Hard) should be visible in the placement phase sidebar between the Rotate button and Start Game button
+  3. On mobile (375px viewport / iPhone Safari): layout stacks vertically, cells are 32px touch targets, difficulty selector is visible
+  4. Hard-refresh (Ctrl+Shift+R or Cmd+Shift+R) if the browser cached the old version
+
+---
+
 ## Audit Results: Areas Verified Without Issues
 
 The following areas were audited and confirmed to be bug-free:

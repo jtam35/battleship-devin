@@ -264,6 +264,50 @@ function remainingShipSizes(ships) {
   return sizes;
 }
 
+/* ── Easy AI: pick a random untargeted cell ──────────────────── */
+
+function aiChooseTargetEasy(board) {
+  var candidates = [];
+  for (var r = 0; r < GRID_SIZE; r++) {
+    for (var c = 0; c < GRID_SIZE; c++) {
+      if (board[r][c] === EMPTY || board[r][c] === SHIP) {
+        candidates.push([r, c]);
+      }
+    }
+  }
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+/* ── Medium AI: hunt/target logic ────────────────────────────── */
+
+var huntQueue = [];
+
+function aiChooseTargetMedium(board) {
+  // Try queued targets first (adjacent to previous hits)
+  while (huntQueue.length > 0) {
+    var next = huntQueue.shift();
+    var r = next[0], c = next[1];
+    if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE &&
+        (board[r][c] === EMPTY || board[r][c] === SHIP)) {
+      return next;
+    }
+  }
+  // Fall back to random hunt
+  return aiChooseTargetEasy(board);
+}
+
+function huntQueuePushAdjacent(board, row, col) {
+  var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+  for (var d = 0; d < dirs.length; d++) {
+    var nr = row + dirs[d][0], nc = col + dirs[d][1];
+    if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE &&
+        (board[nr][nc] === EMPTY || board[nr][nc] === SHIP)) {
+      huntQueue.push([nr, nc]);
+    }
+  }
+}
+
 // ── DOM / rendering (only inside initGame) ──────────────────
 
 function initGame() {
@@ -279,6 +323,9 @@ function initGame() {
   var playerTurn;
   var lastTapCell;
   var messageLog = [];  // turn-by-turn log entries
+  var playerShots = 0, playerHits = 0;
+  var aiShots = 0, aiHits = 0;
+  var aiDifficulty = 'medium';
 
   // ── DOM refs ──
   var statusEl        = document.getElementById('status');
@@ -577,6 +624,10 @@ function initGame() {
     messageLog = [];
     renderLog();
 
+    // Read difficulty selection
+    var diffSelect = document.getElementById('difficulty-select');
+    aiDifficulty = diffSelect ? diffSelect.value : 'medium';
+
     // Reset heatmap toggle
     heatmapToggle.checked = false;
 
@@ -605,8 +656,10 @@ function initGame() {
     var result = fireShot(aiBoard, row, col);
     if (result === 'already') { setStatus('Already fired there!'); return; }
 
+    playerShots++;
     var coord = COLS[col] + (row + 1);
     if (result === 'hit') {
+      playerHits++;
       var sunkShip = checkSunk(aiBoard, aiShips, row, col);
       if (sunkShip) {
         setStatus('You sunk the enemy ' + sunkShip.name + '!');
@@ -643,22 +696,33 @@ function initGame() {
 
   function aiTurn() {
     if (gameOver) return;
-    var sizes = remainingShipSizes(playerShips);
-    var target = aiChooseTarget(playerBoard, sizes);
+    var target;
+    if (aiDifficulty === 'hard') {
+      var sizes = remainingShipSizes(playerShips);
+      target = aiChooseTarget(playerBoard, sizes);
+    } else if (aiDifficulty === 'medium') {
+      target = aiChooseTargetMedium(playerBoard);
+    } else {
+      target = aiChooseTargetEasy(playerBoard);
+    }
     if (!target) return;
 
     var result = fireShot(playerBoard, target[0], target[1]);
     var coord = COLS[target[1]] + (target[0] + 1);
 
+    aiShots++;
     if (result === 'hit') {
+      aiHits++;
       var sunkShip = checkSunk(playerBoard, playerShips, target[0], target[1]);
       if (sunkShip) {
+        if (aiDifficulty === 'medium') huntQueue = [];
         setStatus('AI sunk your ' + sunkShip.name + '!');
         addLogEntry('AI sunk your ' + sunkShip.name + ' at ' + coord + '!', 'sunk');
         for (var k = 0; k < sunkShip.cells.length; k++) {
           animateCell(playerGridEl, sunkShip.cells[k][0], sunkShip.cells[k][1], 'anim-sunk');
         }
       } else {
+        if (aiDifficulty === 'medium') huntQueuePushAdjacent(playerBoard, target[0], target[1]);
         setStatus('AI hit your ship at ' + coord + '!');
         addLogEntry('AI hit at ' + coord + '!', 'hit');
         animateCell(playerGridEl, target[0], target[1], 'anim-hit');
@@ -694,12 +758,21 @@ function initGame() {
       endMessage.textContent = 'The AI destroyed your fleet.';
       addLogEntry('DEFEAT. The AI destroyed your fleet.', 'hit');
     }
+    var pAcc = playerShots > 0 ? Math.round(playerHits / playerShots * 100) : 0;
+    var aAcc = aiShots > 0 ? Math.round(aiHits / aiShots * 100) : 0;
+    var statsEl = document.getElementById('match-stats');
+    statsEl.innerHTML =
+      '<div class="stat-row stat-player">Player accuracy: ' + playerHits + ' hits / ' + playerShots + ' shots (' + pAcc + '%)</div>' +
+      '<div class="stat-row stat-ai">AI accuracy: ' + aiHits + ' hits / ' + aiShots + ' shots (' + aAcc + '%)</div>';
   }
 
   function resetToPlacement() {
     endScreen.classList.add('hidden');
     gamePhase.classList.add('hidden');
     placementPhase.classList.remove('hidden');
+    playerShots = 0; playerHits = 0;
+    aiShots = 0; aiHits = 0;
+    huntQueue = [];
     initPlacement();
   }
 
