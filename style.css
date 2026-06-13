@@ -48,6 +48,7 @@ header h1 {
 /* ── Buttons ────────────────────────────────────────── */
 .btn {
   padding: 0.55rem 1.2rem;
+  touch-action: manipulation;
   border: none;
   border-radius: 6px;
   font-size: 0.95rem;
@@ -201,6 +202,8 @@ header h1 {
   border: 1px solid var(--border);
   border-radius: 3px;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   position: relative;
   transition: background 0.12s;
 }

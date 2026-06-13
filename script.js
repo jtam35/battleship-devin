@@ -607,7 +607,6 @@ function initGame() {
   function onPlacementTouch(e) {
     var t = e.target;
     if (!t.classList.contains('cell')) return;
-    e.preventDefault();
     ghostRow = +t.dataset.row;
     ghostCol = +t.dataset.col;
     showGhost(ghostRow, ghostCol);
