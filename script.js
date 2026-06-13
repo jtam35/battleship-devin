@@ -381,15 +381,17 @@ function initGame() {
   }
 
   /**
-   * Render the probability heatmap overlay on the AI board.
+   * Render the probability heatmap overlay on the PLAYER's board.
+   * Shows where the AI thinks the player's ships are hiding.
    * Uses HSL: hue from 240 (blue/cool) to 0 (red/warm) proportional to probability.
-   * Only overlays unknown cells (not hit/miss/sunk).
+   * Warm = likely AI target, cool = ruled out.
+   * Only overlays unfired cells (not hit/miss/sunk).
    */
   function renderHeatmap() {
     if (!heatmapToggle.checked) return;
-    // Build probability from player's perspective: where might AI ships be?
-    var sizes = remainingShipSizes(aiShips);
-    var prob = buildProbabilityGrid(aiBoard, sizes);
+    // Build probability from AI's perspective: where might player ships be?
+    var sizes = remainingShipSizes(playerShips);
+    var prob = buildProbabilityGrid(playerBoard, sizes);
 
     // Find max for normalization
     var maxVal = 0;
@@ -402,9 +404,9 @@ function initGame() {
 
     for (var r2 = 0; r2 < GRID_SIZE; r2++) {
       for (var c2 = 0; c2 < GRID_SIZE; c2++) {
-        var el = getCellEl(aiGridEl, r2, c2);
-        var v = aiBoard[r2][c2];
-        // Only overlay on unknown cells
+        var el = getCellEl(playerGridEl, r2, c2);
+        var v = playerBoard[r2][c2];
+        // Only overlay on unfired cells (EMPTY or SHIP from player's view)
         if (v === EMPTY || v === SHIP) {
           var ratio = prob[r2][c2] / maxVal;
           if (ratio > 0) {
@@ -418,12 +420,12 @@ function initGame() {
     }
   }
 
-  /** Clear heatmap overlay from AI board. */
+  /** Clear heatmap overlay from player board. */
   function clearHeatmap() {
     for (var r = 0; r < GRID_SIZE; r++) {
       for (var c = 0; c < GRID_SIZE; c++) {
-        var el = getCellEl(aiGridEl, r, c);
-        var v = aiBoard[r][c];
+        var el = getCellEl(playerGridEl, r, c);
+        var v = playerBoard[r][c];
         if (v === EMPTY || v === SHIP) {
           el.style.backgroundColor = '';
         }
@@ -668,6 +670,7 @@ function initGame() {
     }
 
     renderBoard(playerGridEl, playerBoard, true);
+    renderHeatmap();
 
     if (allSunk(playerShips)) {
       endGame(false);
