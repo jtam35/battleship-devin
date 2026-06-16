@@ -226,6 +226,33 @@ function buildProbabilityGrid(board, remainingSizes) {
     }
   }
 
+  // ── Hit-adjacency boost ──
+  // Strongly prioritize cells adjacent to unsunk HITs.
+  // If 2+ HITs form a line, boost cells that extend the line even more.
+  var ADJ_BOOST = 15;
+  var LINE_BOOST = 30;
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+
+  for (var rh = 0; rh < GRID_SIZE; rh++) {
+    for (var ch = 0; ch < GRID_SIZE; ch++) {
+      if (board[rh][ch] !== HIT) continue;
+
+      for (var d = 0; d < dirs.length; d++) {
+        var nr = rh + dirs[d][0], nc = ch + dirs[d][1];
+        if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
+        if (prob[nr][nc] === 0) continue; // already fired or no valid placement
+
+        // Check if this direction extends a line of 2+ HITs
+        var opp_r = rh - dirs[d][0], opp_c = ch - dirs[d][1];
+        var inLine = (opp_r >= 0 && opp_r < GRID_SIZE &&
+                      opp_c >= 0 && opp_c < GRID_SIZE &&
+                      board[opp_r][opp_c] === HIT);
+
+        prob[nr][nc] *= inLine ? LINE_BOOST : ADJ_BOOST;
+      }
+    }
+  }
+
   return prob;
 }
 
