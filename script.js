@@ -324,6 +324,7 @@ function initGame() {
   var lastTapCell;
   var ghostRow = null;  // current ghost preview position
   var ghostCol = null;
+  var ghostLocked = false; // true after click — hover won't override
   var messageLog = [];  // turn-by-turn log entries
   var playerShots = 0, playerHits = 0;
   var aiShots = 0, aiHits = 0;
@@ -507,6 +508,7 @@ function initGame() {
     lastTapCell = null;
     ghostRow = null;
     ghostCol = null;
+    ghostLocked = false;
     gameOver = false;
     messageLog = [];
     if (placementActionBar) placementActionBar.classList.add('hidden');
@@ -592,6 +594,7 @@ function initGame() {
   }
 
   function onPlacementHover(e) {
+    if (ghostLocked) return;
     var t = e.target;
     if (!t.classList.contains('cell')) return;
     var row = +t.dataset.row;
@@ -612,6 +615,7 @@ function initGame() {
     if (!t.classList.contains('cell')) return;
     ghostRow = +t.dataset.row;
     ghostCol = +t.dataset.col;
+    ghostLocked = true;
     lastTapCell = [ghostRow, ghostCol];
     showGhost(ghostRow, ghostCol);
     updatePlaceBtn();
@@ -646,6 +650,7 @@ function initGame() {
     currentShipIdx++;
     ghostRow = null;
     ghostCol = null;
+    ghostLocked = false;
     clearGhost();
     placeBtn.disabled = true;
     if (placementActionBar) placementActionBar.classList.add('hidden');
