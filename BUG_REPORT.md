@@ -74,6 +74,27 @@ This document tracks all bugs found during development, testing, and deployment 
 
 ---
 
+## BUG-006: Mobile touch events unreliable for ship placement
+
+- **Severity:** Medium (ship placement flow broken or sluggish on iOS Safari)
+- **File(s) affected:** `script.js` (lines 607–614, `onPlacementTouch`), `style.css` (lines 198–206, `.grid .cell`; line 50, `.btn`)
+- **Description:** On real mobile devices (particularly iOS Safari), the ship placement touch flow was unreliable. Users reported "something is still wrong with the placement on mobile" despite the flow working correctly in Chrome's device emulation mode. Symptoms included sluggish/delayed cell selection, ghost preview not appearing on tap, and the Place Ship button not responding immediately.
+- **Root cause:** Three issues combined:
+  1. **Missing `touch-action: manipulation`** on grid cells and buttons — without this CSS property, iOS Safari applies a 300ms delay before firing `click` events (to detect potential double-tap-to-zoom gestures). The `touchend` handler fired immediately, but if it failed for any reason, the fallback `click` path was delayed.
+  2. **`e.preventDefault()` in `onPlacementTouch`** created a single point of failure — it prevented the synthetic `click` event from firing after `touchend`. This meant only the `touchend` → `onPlacementTouch` code path worked on mobile. If `touchend` didn't fire correctly (e.g., slight finger movement interpreted as scroll, or iOS event sequencing quirks), no handler ran at all.
+  3. **Missing `-webkit-tap-highlight-color: transparent`** on cells caused a blue flash overlay on iOS that obscured the ghost preview visual feedback.
+- **Fix applied:**
+  1. Added `touch-action: manipulation` to `.grid .cell` and `.btn` in `style.css` — eliminates the 300ms click delay on all mobile browsers
+  2. Removed `e.preventDefault()` from `onPlacementTouch` in `script.js` — both `touchend` and `click` handlers now fire (they're idempotent, so running both is harmless and more robust)
+  3. Added `-webkit-tap-highlight-color: transparent` to `.grid .cell` in `style.css`
+- **How to verify:**
+  1. Open the game on an iPhone (Safari) or Android (Chrome) at 375px viewport
+  2. Tap a grid cell — the ghost preview should appear immediately (no delay)
+  3. Tap "Place Ship" — the ship should place immediately
+  4. Repeat for all 5 ships — the flow should be smooth with no missed taps
+
+---
+
 ## Audit Results: Areas Verified Without Issues
 
 The following areas were audited and confirmed to be bug-free:

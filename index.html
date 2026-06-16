@@ -15,6 +15,9 @@
   <main id="game-container">
     <!-- Placement phase -->
     <section id="placement-phase">
+      <p id="placement-instructions">
+        Click (or tap) a cell to preview your ship. Use <strong>Rotate</strong> or press <kbd>R</kbd> to change orientation, then confirm placement.
+      </p>
       <div id="placement-board-wrapper">
         <h2>Your Board</h2>
         <div id="placement-grid" class="grid"></div>
@@ -22,23 +25,31 @@
       <aside id="ship-list">
         <h2>Fleet</h2>
         <ul id="ships-to-place"></ul>
-        <button id="rotate-btn" class="btn">Rotate (R)</button>
+        <div id="placement-controls">
+          <button id="rotate-btn" class="btn">Rotate (R)</button>
+          <button id="place-btn" class="btn btn-primary" disabled>Place Ship</button>
+        </div>
         <div id="difficulty-wrapper">
           <label for="difficulty-select">Difficulty</label>
           <select id="difficulty-select">
             <option value="easy">Easy</option>
-            <option value="medium" selected>Medium</option>
-            <option value="hard">Hard</option>
+            <option value="medium">Medium</option>
+            <option value="hard" selected>Hard</option>
           </select>
         </div>
         <button id="start-btn" class="btn btn-primary" disabled>Start Game</button>
       </aside>
+      <div id="placement-action-bar" class="hidden">
+        <button id="mobile-rotate-btn" class="btn">Rotate Ship</button>
+        <button id="mobile-place-btn" class="btn btn-primary">Place Ship Here</button>
+      </div>
     </section>
 
     <!-- Game phase -->
     <section id="game-phase" class="hidden">
+      <div id="last-result" class="hidden"></div>
       <div class="game-controls">
-        <label class="toggle-label" title="Heatmap shows where the AI thinks your ships are — warm = likely target, cool = ruled out.">
+        <label class="toggle-label" title="Heatmap shows where the AI thinks your ships are — warm = likely target, cool = ruled out. Ship cells show a colored inset ring.">
           <input type="checkbox" id="heatmap-toggle" />
           <span>Show AI Thinking</span>
         </label>
@@ -51,6 +62,13 @@
       <div class="board-wrapper">
         <h2>Your Board</h2>
         <div id="player-grid" class="grid"></div>
+      </div>
+      <div id="board-legend">
+        <span class="legend-item"><span class="legend-swatch"></span>Untried</span>
+        <span class="legend-item"><span class="legend-swatch ship"></span>Your Ship</span>
+        <span class="legend-item"><span class="legend-swatch hit"></span>Hit ✕</span>
+        <span class="legend-item"><span class="legend-swatch sunk"></span>Sunk ✕</span>
+        <span class="legend-item"><span class="legend-swatch miss"></span>Miss •</span>
       </div>
       <div id="message-log">
         <h3>Battle Log</h3>
