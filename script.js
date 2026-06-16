@@ -592,13 +592,10 @@ function initGame() {
   }
 
   function onPlacementHover(e) {
+    if (ghostRow !== null && ghostCol !== null) return;
     var t = e.target;
     if (!t.classList.contains('cell')) return;
-    var row = +t.dataset.row;
-    var col = +t.dataset.col;
-    showGhost(row, col);
-    // Only update tracked position on hover if no position locked via click
-    // (hover is transient — click/tap sets the persistent ghost position)
+    showGhost(+t.dataset.row, +t.dataset.col);
   }
 
   function onPlacementMouseOut(e) {
