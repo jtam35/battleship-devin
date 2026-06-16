@@ -327,7 +327,7 @@ function initGame() {
   var messageLog = [];  // turn-by-turn log entries
   var playerShots = 0, playerHits = 0;
   var aiShots = 0, aiHits = 0;
-  var aiDifficulty = 'medium';
+  var aiDifficulty = 'hard';
 
   // ── DOM refs ──
   var statusEl        = document.getElementById('status');
@@ -347,9 +347,18 @@ function initGame() {
   var playerGridEl    = document.getElementById('player-grid');
   var heatmapToggle   = document.getElementById('heatmap-toggle');
   var logListEl       = document.getElementById('log-list');
+  var lastResultEl    = document.getElementById('last-result');
+  var placementActionBar = document.getElementById('placement-action-bar');
+  var mobilePlaceBtn  = document.getElementById('mobile-place-btn');
+  var mobileRotateBtn = document.getElementById('mobile-rotate-btn');
 
   // ── Helpers ──
   function setStatus(msg) { statusEl.textContent = msg; }
+
+  function setLastResult(msg, type) {
+    lastResultEl.textContent = msg;
+    lastResultEl.className = type ? 'result-' + type : '';
+  }
 
   /** Add an entry to the message log and update the DOM. */
   function addLogEntry(msg, type) {
@@ -463,7 +472,11 @@ function initGame() {
             // HSL: hue 240 (blue) -> 0 (red), saturation 80%, lightness 40-55%
             var hue = Math.round(240 * (1 - ratio));
             var lightness = Math.round(40 + 15 * ratio);
-            el.style.backgroundColor = 'hsl(' + hue + ', 80%, ' + lightness + '%)';
+            if (v === SHIP) {
+              el.style.boxShadow = 'inset 0 0 0 4px hsl(' + hue + ', 80%, ' + lightness + '%)';
+            } else {
+              el.style.backgroundColor = 'hsl(' + hue + ', 80%, ' + lightness + '%)';
+            }
           }
         }
       }
@@ -478,6 +491,7 @@ function initGame() {
         var v = playerBoard[r][c];
         if (v === EMPTY || v === SHIP) {
           el.style.backgroundColor = '';
+          if (v === SHIP) el.style.boxShadow = '';
         }
       }
     }
@@ -495,6 +509,7 @@ function initGame() {
     ghostCol = null;
     gameOver = false;
     messageLog = [];
+    if (placementActionBar) placementActionBar.classList.add('hidden');
 
     buildGridDOM(placementGrid, onPlacementClick);
 
@@ -600,8 +615,10 @@ function initGame() {
     if (!t.classList.contains('cell')) return;
     ghostRow = +t.dataset.row;
     ghostCol = +t.dataset.col;
+    lastTapCell = [ghostRow, ghostCol];
     showGhost(ghostRow, ghostCol);
     updatePlaceBtn();
+    if (placementActionBar) placementActionBar.classList.remove('hidden');
   }
 
   function onPlacementTouch(e) {
@@ -609,8 +626,10 @@ function initGame() {
     if (!t.classList.contains('cell')) return;
     ghostRow = +t.dataset.row;
     ghostCol = +t.dataset.col;
+    lastTapCell = [ghostRow, ghostCol];
     showGhost(ghostRow, ghostCol);
     updatePlaceBtn();
+    if (placementActionBar) placementActionBar.classList.remove('hidden');
   }
 
   function onPlaceBtnClick() {
@@ -632,6 +651,7 @@ function initGame() {
     ghostCol = null;
     clearGhost();
     placeBtn.disabled = true;
+    if (placementActionBar) placementActionBar.classList.add('hidden');
     renderBoard(placementGrid, placementBoard, true);
     renderShipList();
 
@@ -664,7 +684,7 @@ function initGame() {
 
     // Read difficulty selection
     var diffSelect = document.getElementById('difficulty-select');
-    aiDifficulty = diffSelect ? diffSelect.value : 'medium';
+    aiDifficulty = diffSelect ? diffSelect.value : 'hard';
 
     // Reset heatmap toggle
     heatmapToggle.checked = false;
@@ -679,6 +699,7 @@ function initGame() {
     renderBoard(aiGridEl, aiBoard, false);
 
     setStatus('Your turn \u2014 fire at the enemy!');
+    setLastResult('', '');
   }
 
   // ── Player fires ──
@@ -701,6 +722,7 @@ function initGame() {
       var sunkShip = checkSunk(aiBoard, aiShips, row, col);
       if (sunkShip) {
         setStatus('You sunk the enemy ' + sunkShip.name + '!');
+        setLastResult('You sunk ' + sunkShip.name + '!', 'sunk');
         addLogEntry('You sunk ' + sunkShip.name + ' at ' + coord + '!', 'sunk');
         // Animate all sunk cells
         for (var k = 0; k < sunkShip.cells.length; k++) {
@@ -708,11 +730,13 @@ function initGame() {
         }
       } else {
         setStatus('You hit a ship!');
+        setLastResult('You hit a ship!', 'hit');
         addLogEntry('You hit at ' + coord + '!', 'hit');
         animateCell(aiGridEl, row, col, 'anim-hit');
       }
     } else {
       setStatus('Miss!');
+      setLastResult('Miss!', 'miss');
       addLogEntry('You missed at ' + coord + '.', 'miss');
       animateCell(aiGridEl, row, col, 'anim-miss');
     }
@@ -755,6 +779,7 @@ function initGame() {
       if (sunkShip) {
         if (aiDifficulty === 'medium') huntQueue = [];
         setStatus('AI sunk your ' + sunkShip.name + '!');
+        setLastResult('AI sunk your ' + sunkShip.name + '!', 'sunk');
         addLogEntry('AI sunk your ' + sunkShip.name + ' at ' + coord + '!', 'sunk');
         for (var k = 0; k < sunkShip.cells.length; k++) {
           animateCell(playerGridEl, sunkShip.cells[k][0], sunkShip.cells[k][1], 'anim-sunk');
@@ -762,11 +787,13 @@ function initGame() {
       } else {
         if (aiDifficulty === 'medium') huntQueuePushAdjacent(playerBoard, target[0], target[1]);
         setStatus('AI hit your ship at ' + coord + '!');
+        setLastResult('AI hit at ' + coord + '!', 'hit');
         addLogEntry('AI hit at ' + coord + '!', 'hit');
         animateCell(playerGridEl, target[0], target[1], 'anim-hit');
       }
     } else {
       setStatus('AI missed at ' + coord + '.');
+      setLastResult('AI missed at ' + coord + '.', 'miss');
       addLogEntry('AI missed at ' + coord + '.', 'miss');
       animateCell(playerGridEl, target[0], target[1], 'anim-miss');
     }
@@ -811,6 +838,8 @@ function initGame() {
     playerShots = 0; playerHits = 0;
     aiShots = 0; aiHits = 0;
     huntQueue = [];
+    setLastResult('', '');
+    lastResultEl.classList.add('hidden');
     initPlacement();
   }
 
@@ -834,6 +863,24 @@ function initGame() {
       }
     }
   });
+
+  // ── Mobile floating action bar ──
+  if (mobilePlaceBtn) {
+    mobilePlaceBtn.addEventListener('click', function() {
+      if (lastTapCell) {
+        attemptPlacement(lastTapCell[0], lastTapCell[1]);
+      }
+    });
+  }
+  if (mobileRotateBtn) {
+    mobileRotateBtn.addEventListener('click', function() {
+      toggleOrientation();
+      if (lastTapCell) {
+        showGhost(lastTapCell[0], lastTapCell[1]);
+        updatePlaceBtn();
+      }
+    });
+  }
 
   // ── Kick off ──
   initPlacement();
