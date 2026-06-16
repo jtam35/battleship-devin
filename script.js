@@ -592,19 +592,19 @@ function initGame() {
   }
 
   function onPlacementHover(e) {
-    if (ghostRow !== null && ghostCol !== null) return;
     var t = e.target;
     if (!t.classList.contains('cell')) return;
-    showGhost(+t.dataset.row, +t.dataset.col);
+    var row = +t.dataset.row;
+    var col = +t.dataset.col;
+    if (row === ghostRow && col === ghostCol) return;
+    ghostRow = row;
+    ghostCol = col;
+    showGhost(row, col);
+    updatePlaceBtn();
   }
 
-  function onPlacementMouseOut(e) {
-    // If a position is locked via click, re-show that ghost; otherwise clear
-    if (ghostRow !== null && ghostCol !== null) {
-      showGhost(ghostRow, ghostCol);
-    } else {
-      clearGhost();
-    }
+  function onPlacementMouseOut() {
+    // Ghost stays at last hovered/clicked position — no clearing needed
   }
 
   function onPlacementClick(e) {

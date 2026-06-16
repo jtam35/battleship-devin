@@ -6,9 +6,9 @@
   --text:      #e2e8f0;
   --muted:     #94a3b8;
   --accent:    #38bdf8;
-  --hit:       #ef4444;
+  --hit:       #f87171;
   --miss:      #64748b;
-  --sunk:      #b91c1c;
+  --sunk:      #991b1b;
   --ship:      #3b82f6;
   --ghost-ok:  rgba(56,189,248,0.35);
   --ghost-bad: rgba(239,68,68,0.35);
@@ -262,6 +262,13 @@ header h1 {
   border: 1px solid var(--border);
   background: var(--surface);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
 }
 .legend-swatch.ship { background: var(--ship); }
 .legend-swatch.hit  { background: var(--hit); }
