@@ -470,13 +470,17 @@ function initGame() {
         if (v === EMPTY || v === SHIP) {
           var ratio = prob[r2][c2] / maxVal;
           if (ratio > 0) {
-            // HSL: hue 240 (blue) -> 0 (red), saturation 80%, lightness 40-55%
-            var hue = Math.round(240 * (1 - ratio));
-            var lightness = Math.round(40 + 15 * ratio);
+            // HSLA: hue 220 (soft blue) -> 15 (warm coral), lower saturation
+            // and higher lightness for a blended, pastel look that stays
+            // readable as more cells light up mid/late game.
+            var hue = Math.round(220 - 205 * ratio);
+            var sat = 50;
+            var lightness = Math.round(60 + 10 * ratio);
+            var alpha = (0.35 + 0.3 * ratio).toFixed(2);
             if (v === SHIP) {
-              el.style.boxShadow = 'inset 0 0 0 4px hsl(' + hue + ', 80%, ' + lightness + '%)';
+              el.style.boxShadow = 'inset 0 0 0 4px hsla(' + hue + ', ' + sat + '%, ' + lightness + '%, 0.75)';
             } else {
-              el.style.backgroundColor = 'hsl(' + hue + ', 80%, ' + lightness + '%)';
+              el.style.backgroundColor = 'hsla(' + hue + ', ' + sat + '%, ' + lightness + '%, ' + alpha + ')';
             }
           }
         }
