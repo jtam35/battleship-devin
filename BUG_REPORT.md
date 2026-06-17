@@ -95,27 +95,82 @@ This document tracks all bugs found during development, testing, and deployment 
 
 ---
 
+## BUG-007: Ghost preview not persisting at clicked position during ship placement
+
+- **Severity:** Medium (ship placement UX confusing — ghost vanishes when moving to Place Ship button)
+- **File(s) affected:** `script.js`, lines 627–654 (`onPlacementHover`, `onPlacementClick`)
+- **Description:** On desktop, after clicking a cell to preview a ship placement, the ghost preview (cyan cells) disappeared as soon as the mouse moved away from the clicked cell. This meant users couldn't see where their ship would be placed while moving the cursor to the "Place Ship" button. The ghost followed the mouse instead of staying locked at the clicked position.
+- **Root cause:** The `onPlacementHover` handler was unconditionally updating `ghostRow`/`ghostCol` on every `mouseover` event. When the user clicked cell A1 and moved toward the "Place Ship" button, the hover handler updated the ghost to every cell the cursor crossed, ultimately clearing it when the cursor left the grid.
+- **Fix history:**
+  - **PR #15 (partial fix):** Made `onPlacementHover` return early when a position was already set — but this didn't work because hover wasn't setting the position in the first place.
+  - **PR #16 (overcorrection):** Made hover set position like click, so the ghost "stuck" everywhere — but this caused the ghost to update to every cell along the cursor path when moving to the Place Ship button, placing the ship at the wrong location.
+  - **PR #17 (final fix):** Added `ghostLocked` boolean flag. `onPlacementClick` sets `ghostLocked = true`, `onPlacementHover` returns early when `ghostLocked` is true. `attemptPlacement` resets `ghostLocked = false` so hover works again for the next ship.
+- **How to verify:**
+  1. Click cell A1 — ghost preview appears (5 cyan cells)
+  2. Move mouse to cell E5 — ghost should stay at A1 (locked)
+  3. Click "Place Ship" — ship placed at A1, ghost clears
+  4. Hover over grid cells — ghost follows mouse again (unlocked for next ship)
+
+---
+
+## BUG-008: Heatmap colors too harsh and hard to read mid/late game
+
+- **Severity:** Low (visual discomfort, feature still functional)
+- **File(s) affected:** `script.js`, lines 497–509 (`renderHeatmap()` color calculations)
+- **Description:** The "Show AI Thinking" heatmap used highly saturated, dark colors (80% saturation, 40-55% lightness) that became visually overwhelming as the game progressed. With more cells getting high probability values in the mid-to-late game, the board was dominated by harsh vivid colors that were "difficult to look at" (user feedback).
+- **Root cause:** The original HSLA color formula used aggressive parameters: `sat = 80`, `lightness = 40 + 15 * ratio` (range 40-55%), and no alpha transparency. This produced vivid, opaque colors that dominated the board surface, especially when many cells had non-zero probability.
+- **Fix applied:** Softened the palette to pastel tones with transparency:
+  - Saturation reduced from 80% to 50%
+  - Lightness raised from 40-55% to 60-70%
+  - Alpha channel added (0.35-0.65) so the board background bleeds through low-probability cells
+  - Hue range tightened from blue-to-pure-red to soft-blue-to-warm-coral (220° → 15°)
+- **How to verify:** Enable "Show AI Thinking" during a game. The overlay should use soft, blended pastel colors that remain readable even when many cells are highlighted in the late game.
+
+---
+
+## BUG-009: Hard AI weak endgame targeting — fails to finish wounded ships
+
+- **Severity:** Medium (Hard AI feels unintelligent despite sophisticated probability model)
+- **File(s) affected:** `script.js`, lines 229–254 (`buildProbabilityGrid()` hit-adjacency boost)
+- **Description:** On Hard difficulty, the AI often scattered shots across the board after hitting a player ship instead of systematically sinking it. The probability-density model gave cells adjacent to hits only ~2x higher scores than distant cells, which wasn't enough to reliably prioritize finishing wounded ships.
+- **Root cause:** `buildProbabilityGrid()` calculated base probabilities by counting valid ship placements through each cell. A cell adjacent to a HIT might have 10 valid placements vs. 5 for a distant cell — only a 2x advantage. Without explicit adjacency boosting, the AI frequently chose distant cells with moderately high base probabilities instead of the adjacent cells that would logically complete a partially-sunk ship.
+- **Fix applied:** Added a dedicated hit-adjacency multiplier pass after the base probability calculation:
+  - `ADJ_BOOST = 15`: Cells adjacent to an isolated HIT get 15x multiplier
+  - `LINE_BOOST = 30`: Cells extending a line of 2+ consecutive HITs get 30x multiplier
+  - Combined effect: adjacent-to-hit cells score ~45x higher than distant cells; line extensions score ~120x higher
+  - The multiplier only applies to cells with non-zero base probability (already-fired cells remain at 0)
+- **How to verify:** Play on Hard difficulty and observe AI behavior after it hits one of your ships. The AI's next 3-4 shots should be immediately adjacent to the hit (up/down/left/right), not scattered randomly. On a line of 2+ hits, the AI should extend the line in the same direction.
+
+---
+
 ## Audit Results: Areas Verified Without Issues
 
 The following areas were audited and confirmed to be bug-free:
 
 ### JavaScript (script.js)
 - **Syntax:** No syntax errors. All functions properly closed, no missing semicolons or braces.
-- **DOM element references:** All `getElementById()` calls match IDs in index.html (`status`, `placement-phase`, `game-phase`, `end-screen`, `end-title`, `end-message`, `restart-btn`, `restart-game-btn`, `start-btn`, `rotate-btn`, `ships-to-place`, `placement-grid`, `ai-grid`, `player-grid`, `heatmap-toggle`, `log-list`).
+- **DOM element references:** All `getElementById()` calls match IDs in index.html (`status`, `placement-phase`, `game-phase`, `end-screen`, `end-title`, `end-message`, `restart-btn`, `restart-game-btn`, `start-btn`, `rotate-btn`, `place-btn`, `ships-to-place`, `placement-grid`, `ai-grid`, `player-grid`, `heatmap-toggle`, `log-list`, `difficulty-select`, `match-stats`, `last-result`, `placement-action-bar`, `mobile-rotate-btn`, `mobile-place-btn`).
 - **Event listeners:** Correctly attached — `DOMContentLoaded` triggers `initGame()`, placement clicks/hovers/touches handled, AI grid click handler checks `playerTurn` and `gameOver` flags.
 - **initGame() invocation:** Properly guarded by `if (!window.__TEST_MODE__)` and registered on `DOMContentLoaded`. Since `<script>` is at end of `<body>`, the event hasn't fired yet when the listener is registered — timing is correct.
 - **Ship placement validation:** `isValidPlacement()` correctly checks bounds via `shipCells()` and overlap via board state. `placeFleetRandomly()` loops until valid placement found.
-- **AI probability calculation:** `buildProbabilityGrid()` correctly iterates horizontal and vertical placements, validates against MISS/SUNK cells, and zeros out already-fired cells.
+- **AI probability calculation:** `buildProbabilityGrid()` correctly iterates horizontal and vertical placements, validates against MISS/SUNK cells, zeros out already-fired cells, and applies hit-adjacency multipliers (15x/30x).
+- **AI difficulty modes:** Easy (random), Medium (hunt/target with `huntQueue`), Hard (probability density + hit-adjacency boost) all correctly branch in `aiTurn()`.
 - **Turn management:** `playerTurn` flag set to `false` immediately after valid shot, re-enabled after `aiTurn()` completes. `gameOver` flag blocks all clicks after win/loss.
 - **Win condition:** `allSunk()` iterates all ships and returns true only when every ship has `sunk: true`.
+- **Stats counters:** `playerShots`/`playerHits`/`aiShots`/`aiHits` correctly incremented in fire handlers and reset in `resetToPlacement()`.
+- **Ghost locking:** `ghostLocked` flag prevents hover override after click, resets after placement.
 
 ### CSS (style.css)
 - **Asset references:** No external assets referenced — all styling is self-contained.
 - **Hidden class:** `.hidden { display: none !important; }` correctly hides elements. Removing the class restores the element's declared `display` value.
-- **Responsive layout:** `@media (max-width: 600px)` correctly stacks boards vertically and reduces cell sizes.
+- **Responsive layout:** `@media (max-width: 600px)` correctly stacks boards vertically and reduces cell sizes. `@media (max-width: 400px)` provides larger 32px touch targets for ultra-narrow viewports.
+- **Touch properties:** `touch-action: manipulation` on cells and buttons eliminates 300ms click delay. `-webkit-tap-highlight-color: transparent` removes iOS blue flash.
+- **Floating action bar:** Fixed position at bottom of viewport on mobile, hidden on desktop.
 - **Animations:** `@keyframes` definitions are syntactically correct. Animation classes auto-removed via JS `animationend` event listener — no memory leak.
+- **Color contrast:** Hit (#f87171) and Sunk (#991b1b) colors have sufficient contrast for differentiation. Legend swatches include icons (✕, •) inside the tiles.
 
 ### HTML (index.html)
 - **Structure:** Valid HTML5 document with proper `<meta charset>` and viewport tag.
 - **Asset paths:** `style.css` and `script.js` referenced with relative paths — works on GitHub Pages since index.html is at repo root.
 - **No broken references:** No images, fonts, or external resources that could 404.
+- **Accessibility:** Board legend provides color key. Placement instructions guide new users. Difficulty selector defaults to Hard.
